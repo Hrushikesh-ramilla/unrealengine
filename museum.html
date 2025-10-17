@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Museum Environment</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+            max-width: 300px;
+        }
+        #info h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #4a9eff;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 15px;
+            color: white;
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .control-label {
+            font-size: 11px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px 50px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div>Initializing Virtual Museum...</div>
+        <div class="loader"></div>
+    </div>
+    <div id="canvas-container"></div>
+    <div id="info">
+        <h3>🏛️ Virtual Museum</h3>
+        <div><strong>Controls:</strong></div>
+        <div>• Mouse: Look around</div>
+        <div>• WASD: Move</div>
+        <div>• Space: Jump</div>
+        <div>• Shift: Sprint</div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3);">
+            <strong>Features:</strong><br>
+            Dynamic lighting, animated actors, realistic textures, and interactive environment
+        </div>
+    </div>
+    <div id="controls">
+        <div class="control-group">
+            <span class="control-label">Time of Day</span>
+            <button onclick="toggleDayNight()">Toggle Day/Night</button>
+        </div>
+        <div class="control-group">
+            <span class="control-label">Animation</span>
+            <button onclick="toggleAnimation()">Pause/Resume</button>
+        </div>
+        <div class="control-group">
+            <span class="control-label">View</span>
+            <button onclick="resetCamera()">Reset Camera</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let actors = [];
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let canJump = true;
+        let isRunning = false;
+        let animationPaused = false;
+        let isDayTime = true;
+        let lights = {};
+
+        // Pointer lock
+        let controls = {
+            pitch: 0,
+            yaw: 0,
+            isLocked: false
+        };
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87ceeb, 10, 100);
+            scene.background = new THREE.Color(0x87ceeb);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 10);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+
+            // Lighting setup
+            setupLighting();
+
+            // Create environment
+            createMuseum();
+            createFloor();
+            createActors();
+            createArtworks();
+            createDecorations();
+
+            // Event listeners
+            setupControls();
+
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
+
+            animate();
+        }
+
+        function setupLighting() {
+            // Ambient light
+            lights.ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(lights.ambient);
+
+            // Main directional light (sun)
+            lights.sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            lights.sun.position.set(10, 20, 10);
+            lights.sun.castShadow = true;
+            lights.sun.shadow.mapSize.width = 2048;
+            lights.sun.shadow.mapSize.height = 2048;
+            lights.sun.shadow.camera.near = 0.5;
+            lights.sun.shadow.camera.far = 500;
+            lights.sun.shadow.camera.left = -50;
+            lights.sun.shadow.camera.right = 50;
+            lights.sun.shadow.camera.top = 50;
+            lights.sun.shadow.camera.bottom = -50;
+            scene.add(lights.sun);
+
+            // Spotlights for artworks
+            const spotPositions = [
+                [-8, 5, -8], [0, 5, -8], [8, 5, -8],
+                [-8, 5, 8], [0, 5, 8], [8, 5, 8]
+            ];
+
+            lights.spots = [];
+            spotPositions.forEach(pos => {
+                const spot = new THREE.SpotLight(0xffffff, 0.5);
+                spot.position.set(pos[0], pos[1], pos[2]);
+                spot.angle = Math.PI / 6;
+                spot.penumbra = 0.3;
+                spot.decay = 2;
+                spot.distance = 20;
+                spot.castShadow = true;
+                scene.add(spot);
+                lights.spots.push(spot);
+            });
+
+            // Point lights for ambient glow
+            const colors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.3, 15);
+                light.position.set(
+                    Math.cos(i * Math.PI / 2) * 10,
+                    3,
+                    Math.sin(i * Math.PI / 2) * 10
+                );
+                scene.add(light);
+            });
+        }
+
+        function createMuseum() {
+            // Museum walls
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf5f5dc,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+
+            // Back wall
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(30, 8, 0.5),
+                wallMaterial
+            );
+            backWall.position.set(0, 4, -10);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+
+            // Left wall
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 8, 20),
+                wallMaterial
+            );
+            leftWall.position.set(-15, 4, 0);
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+
+            // Right wall
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 8, 20),
+                wallMaterial
+            );
+            rightWall.position.set(15, 4, 0);
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+
+            // Columns
+            const columnGeometry = new THREE.CylinderGeometry(0.4, 0.5, 8, 8);
+            const columnMaterial = new THREE.MeshStandardMaterial({
+                color: 0xdcdcdc,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+
+            for (let i = -2; i <= 2; i++) {
+                const column = new THREE.Mesh(columnGeometry, columnMaterial);
+                column.position.set(i * 6, 4, -8);
+                column.castShadow = true;
+                column.receiveShadow = true;
+                scene.add(column);
+            }
+        }
+
+        function createFloor() {
+            // Main floor with checker pattern
+            const floorGeometry = new THREE.PlaneGeometry(50, 50, 20, 20);
+            
+            // Create custom material with checker pattern
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            const tileSize = 64;
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    ctx.fillStyle = (i + j) % 2 === 0 ? '#ffffff' : '#cccccc';
+                    ctx.fillRect(i * tileSize, j * tileSize, tileSize, tileSize);
+                }
+            }
+            
+            const floorTexture = new THREE.CanvasTexture(canvas);
+            floorTexture.wrapS = THREE.RepeatWrapping;
+            floorTexture.wrapT = THREE.RepeatWrapping;
+            floorTexture.repeat.set(4, 4);
+            
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                map: floorTexture,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+        }
+
+        function createActors() {
+            // Create humanoid visitors (actors)
+            const actorConfigs = [
+                { pos: [-5, 0, -2], color: 0x3498db, scale: 1 },
+                { pos: [5, 0, 2], color: 0xe74c3c, scale: 0.9 },
+                { pos: [0, 0, -5], color: 0x2ecc71, scale: 1.1 },
+                { pos: [-8, 0, 3], color: 0xf39c12, scale: 0.95 },
+                { pos: [8, 0, -3], color: 0x9b59b6, scale: 1.05 }
+            ];
+
+            actorConfigs.forEach((config, index) => {
+                const actor = createHumanoidActor(config.color, config.scale);
+                actor.position.set(...config.pos);
+                actor.userData.walkPath = index;
+                actor.userData.walkSpeed = 0.5 + Math.random() * 0.5;
+                scene.add(actor);
+                actors.push(actor);
+            });
+
+            // Create a guard actor
+            const guard = createGuardActor();
+            guard.position.set(-10, 0, -8);
+            scene.add(guard);
+            actors.push(guard);
+        }
+
+        function createHumanoidActor(color, scale = 1) {
+            const group = new THREE.Group();
+
+            // Body
+            const bodyGeometry = new THREE.BoxGeometry(0.6 * scale, 1 * scale, 0.4 * scale);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.6,
+                metalness: 0.1
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.5 * scale;
+            body.castShadow = true;
+            group.add(body);
+
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.3 * scale, 16, 16);
+            const headMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xffdbac,
+                roughness: 0.7
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 2.3 * scale;
+            head.castShadow = true;
+            group.add(head);
+
+            // Arms
+            const armGeometry = new THREE.BoxGeometry(0.2 * scale, 0.8 * scale, 0.2 * scale);
+            const armMaterial = new THREE.MeshStandardMaterial({ color: color });
+            
+            const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+            leftArm.position.set(-0.45 * scale, 1.3 * scale, 0);
+            leftArm.castShadow = true;
+            group.add(leftArm);
+            group.userData.leftArm = leftArm;
+
+            const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+            rightArm.position.set(0.45 * scale, 1.3 * scale, 0);
+            rightArm.castShadow = true;
+            group.add(rightArm);
+            group.userData.rightArm = rightArm;
+
+            // Legs
+            const legGeometry = new THREE.BoxGeometry(0.25 * scale, 0.9 * scale, 0.25 * scale);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+            
+            const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            leftLeg.position.set(-0.2 * scale, 0.5 * scale, 0);
+            leftLeg.castShadow = true;
+            group.add(leftLeg);
+            group.userData.leftLeg = leftLeg;
+
+            const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            rightLeg.position.set(0.2 * scale, 0.5 * scale, 0);
+            rightLeg.castShadow = true;
+            group.add(rightLeg);
+            group.userData.rightLeg = rightLeg;
+
+            return group;
+        }
+
+        function createGuardActor() {
+            const guard = createHumanoidActor(0x000000, 1.2);
+            
+            // Add hat
+            const hatGeometry = new THREE.CylinderGeometry(0.35, 0.4, 0.3, 16);
+            const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+            hat.position.y = 2.8;
+            hat.castShadow = true;
+            guard.add(hat);
+
+            guard.userData.isGuard = true;
+            return guard;
+        }
+
+        function createArtworks() {
+            const artworkPositions = [
+                { pos: [-8, 2.5, -9.8], rot: 0 },
+                { pos: [0, 2.5, -9.8], rot: 0 },
+                { pos: [8, 2.5, -9.8], rot: 0 }
+            ];
+
+            artworkPositions.forEach((config, index) => {
+                // Frame
+                const frameGeometry = new THREE.BoxGeometry(2.5, 3, 0.1);
+                const frameMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x8b4513,
+                    roughness: 0.7,
+                    metalness: 0.3
+                });
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                frame.position.set(...config.pos);
+                frame.rotation.y = config.rot;
+                frame.castShadow = true;
+                scene.add(frame);
+
+                // Canvas with gradient
+                const canvasGeometry = new THREE.PlaneGeometry(2.2, 2.7);
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 320;
+                const ctx = canvas.getContext('2d');
+                
+                // Create abstract art
+                const gradient = ctx.createLinearGradient(0, 0, 256, 320);
+                const colors = [
+                    ['#667eea', '#764ba2'],
+                    ['#f093fb', '#f5576c'],
+                    ['#4facfe', '#00f2fe']
+                ];
+                gradient.addColorStop(0, colors[index][0]);
+                gradient.addColorStop(1, colors[index][1]);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 256, 320);
+                
+                // Add some artistic elements
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                for (let i = 0; i < 20; i++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.random() * 256,
+                        Math.random() * 320,
+                        Math.random() * 30,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+
+                const artTexture = new THREE.CanvasTexture(canvas);
+                const artMaterial = new THREE.MeshStandardMaterial({ 
+                    map: artTexture,
+                    roughness: 0.9
+                });
+                const art = new THREE.Mesh(canvasGeometry, artMaterial);
+                art.position.set(config.pos[0], config.pos[1], config.pos[2] + 0.06);
+                art.rotation.y = config.rot;
+                scene.add(art);
+            });
+        }
+
+        function createDecorations() {
+            // Pedestals with sculptures
+            for (let i = -1; i <= 1; i++) {
+                const pedestalGeometry = new THREE.CylinderGeometry(0.5, 0.6, 1.5, 8);
+                const pedestalMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xdcdcdc,
+                    roughness: 0.5,
+                    metalness: 0.3
+                });
+                const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
+                pedestal.position.set(i * 5, 0.75, 5);
+                pedestal.castShadow = true;
+                scene.add(pedestal);
+
+                // Sculpture on pedestal
+                const sculptureGeometry = new THREE.TorusKnotGeometry(0.4, 0.15, 64, 8);
+                const sculptureMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xffd700,
+                    roughness: 0.2,
+                    metalness: 0.8
+                });
+                const sculpture = new THREE.Mesh(sculptureGeometry, sculptureMaterial);
+                sculpture.position.set(i * 5, 2, 5);
+                sculpture.castShadow = true;
+                sculpture.userData.rotationSpeed = 0.5 + Math.random() * 0.5;
+                scene.add(sculpture);
+                actors.push(sculpture);
+            }
+
+            // Benches
+            for (let i = -1; i <= 1; i++) {
+                const benchGroup = new THREE.Group();
+                
+                const seatGeometry = new THREE.BoxGeometry(2, 0.2, 0.6);
+                const benchMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x8b4513,
+                    roughness: 0.8
+                });
+                const seat = new THREE.Mesh(seatGeometry, benchMaterial);
+                seat.castShadow = true;
+                benchGroup.add(seat);
+
+                const legGeometry = new THREE.BoxGeometry(0.1, 0.5, 0.1);
+                [-0.9, 0.9].forEach(x => {
+                    [-0.2, 0.2].forEach(z => {
+                        const leg = new THREE.Mesh(legGeometry, benchMaterial);
+                        leg.position.set(x, -0.35, z);
+                        leg.castShadow = true;
+                        benchGroup.add(leg);
+                    });
+                });
+
+                benchGroup.position.set(i * 6, 0.6, 0);
+                scene.add(benchGroup);
+            }
+        }
+
+        function setupControls() {
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('click', () => {
+                if (!controls.isLocked) {
+                    document.body.requestPointerLock();
+                }
+            });
+            document.addEventListener('pointerlockchange', () => {
+                controls.isLocked = document.pointerLockElement === document.body;
+            });
+            document.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onKeyDown(e) {
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': if (canJump) velocity.y += 5; canJump = false; break;
+                case 'ShiftLeft': isRunning = true; break;
+            }
+        }
+
+        function onKeyUp(e) {
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'ShiftLeft': isRunning = false; break;
+            }
+        }
+
+        function onMouseMove(e) {
+            if (controls.isLocked) {
+                controls.yaw -= e.movementX * 0.002;
+                controls.pitch -= e.movementY * 0.002;
+                controls.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, controls.pitch));
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleDayNight() {
+            isDayTime = !isDayTime;
+            const targetColor = isDayTime ? 0x87ceeb : 0x0a0a0a;
+            const targetIntensity = isDayTime ? 0.8 : 0.1;
+            
+            scene.background = new THREE.Color(targetColor);
+            scene.fog.color = new THREE.Color(targetColor);
+            lights.sun.intensity = targetIntensity;
+            lights.ambient.intensity = isDayTime ? 0.4 : 0.2;
+        }
+
+        function toggleAnimation() {
+            animationPaused = !animationPaused;
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 2, 10);
+            controls.yaw = 0;
+            controls.pitch = 0;
+        }
+
+        function updateActors(delta) {
+            if (animationPaused) return;
+
+            actors.forEach((actor, index) => {
+                if (actor.userData.rotationSpeed) {
+                    // Rotating sculptures
+                    actor.rotation.y += actor.userData.rotationSpeed * delta;
+                } else if (!actor.userData.isGuard) {
+                    // Walking visitors
+                    const time = Date.now() * 0.001 * actor.userData.walkSpeed;
+                    const radius = 3 + actor.userData.walkPath * 0.5;
+                    const angle = time + actor.userData.walkPath * Math.PI / 3;
+                    
+                    actor.position.x = Math.cos(angle) * radius;
+                    actor.position.z = Math.sin(angle) * radius;
+                    actor.rotation.y = angle + Math.PI / 2;
+
+                    // Animate limbs
+                    if (actor.userData.leftArm) {
+                        actor.userData.leftArm.rotation.x = Math.sin(time * 3) * 0.5;
+                        actor.userData.rightArm.rotation.x = -Math.sin(time * 3) * 0.5;
+                        actor.userData.leftLeg.rotation.x = Math.sin(time * 3) * 0.3;
+                        actor.userData.rightLeg.rotation.x = -Math.sin(time * 3) * 0.3;
+                    }
+                }
+            });
+        }
+
+        function updateCamera(delta) {
+            const speed = isRunning ? 10 : 5;
+
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+            velocity.y -= 9.8 * delta;
+
+            direction.z = Number(moveForward) - Number(moveBackward);
+            direction.x = Number(moveRight) - Number(moveLeft);
+            direction.normalize();
+
+            if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+            if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+            camera.quaternion.setFromEuler(new THREE.Euler(controls.pitch, controls.yaw, 0, 'YXZ'));
+            
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+
+            camera.position.addScaledVector(forward, velocity.z * delta);
+            camera.position.addScaledVector(right, velocity.x * delta);
+            camera.position.y += velocity.y * delta;
+
+            if (camera.position.y < 2) {
+                velocity.y = 0;
+                camera.position.y = 2;
+                canJump = true;
+            }
+
+            // Boundaries
+            camera.position.x = Math.max(-14, Math.min(14, camera.position.x));
+            camera.position.z = Math.max(-9, Math.min(9, camera.position.z));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            updateCamera(delta);
+            updateActors(delta);
+
+            renderer.render(scene, camera);
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
