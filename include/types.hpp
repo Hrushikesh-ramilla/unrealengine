@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <compare>
+#include <stdexcept>
 #include <type_traits>
 
 namespace gammaflow {
@@ -64,6 +65,43 @@ public:
     /// Fractional portion as a scaled integer.
     [[nodiscard]] constexpr std::int64_t fractional_part() const noexcept {
         return raw_ % scale;
+    }
+
+    // -- Arithmetic Operators ------------------------------------------------
+
+    constexpr FixedPoint operator+(FixedPoint rhs) const noexcept {
+        return from_raw(raw_ + rhs.raw_);
+    }
+
+    constexpr FixedPoint operator-(FixedPoint rhs) const noexcept {
+        return from_raw(raw_ - rhs.raw_);
+    }
+
+    /// Multiplication: (a * b) / scale -- uses __int128 to avoid overflow.
+    constexpr FixedPoint operator*(FixedPoint rhs) const noexcept {
+        auto wide = static_cast<__int128>(raw_) * rhs.raw_;
+        return from_raw(static_cast<raw_type>(wide / scale));
+    }
+
+    /// Division: (a * scale) / b -- uses __int128 to avoid overflow.
+    constexpr FixedPoint operator/(FixedPoint rhs) const {
+        if (rhs.raw_ == 0) {
+            throw std::domain_error("FixedPoint: division by zero");
+        }
+        auto wide = static_cast<__int128>(raw_) * scale;
+        return from_raw(static_cast<raw_type>(wide / rhs.raw_));
+    }
+
+    constexpr FixedPoint& operator+=(FixedPoint rhs) noexcept {
+        raw_ += rhs.raw_; return *this;
+    }
+
+    constexpr FixedPoint& operator-=(FixedPoint rhs) noexcept {
+        raw_ -= rhs.raw_; return *this;
+    }
+
+    constexpr FixedPoint operator-() const noexcept {
+        return from_raw(-raw_);
     }
 
     // -- Comparison (C++20 three-way) ----------------------------------------
