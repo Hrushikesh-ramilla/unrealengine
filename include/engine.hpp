@@ -1,17 +1,17 @@
-﻿#pragma once
+#pragma once
 
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-// GammaFlow ΓÇö engine.hpp
+// ─────────────────────────────────────────────────────────────────────────────
+// GammaFlow — engine.hpp
 // Core execution engine that ties the ring buffer, object pool, and risk
 // evaluator into a continuously running consumer pipeline.
 //
 // Architecture:
 //   Producer (user thread)           Consumer (background thread)
-//   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ              ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
-//   Γöé  submit(event)  ΓöéΓöÇΓöÇΓöÇ SPSC ΓöÇΓöÇΓöÇΓû╢Γöé  poll ΓåÆ evaluate     Γöé
-//   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   RingBuf   Γöé  store RiskResult    Γöé
-//                                    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+//   ┌─────────────────┐              ┌──────────────────────┐
+//   │  submit(event)  │─── SPSC ───▶│  poll → evaluate     │
+//   └─────────────────┘   RingBuf   │  store RiskResult    │
+//                                    └──────────────────────┘
+// ─────────────────────────────────────────────────────────────────────────────
 
 #include "ring_buffer.hpp"
 #include "evaluator.hpp"
@@ -25,23 +25,23 @@
 
 namespace gammaflow {
 
-/// Default ring buffer depth ΓÇö 64K slots (must be power of two).
+/// Default ring buffer depth — 64K slots (must be power of two).
 inline constexpr std::size_t DEFAULT_RING_CAPACITY = 65536;
 
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─────────────────────────────────────────────────────────────────────────────
 // GammaEngine
 //
 // Owns:
-//   ΓÇó A lock-free SPSC ring buffer of RiskEvent pointers.
-//   ΓÇó A background consumer thread that continuously drains the buffer and
+//   • A lock-free SPSC ring buffer of RiskEvent pointers.
+//   • A background consumer thread that continuously drains the buffer and
 //     passes each event through the RiskEvaluator.
-//   ΓÇó An optional user-supplied callback invoked with every RiskResult.
+//   • An optional user-supplied callback invoked with every RiskResult.
 //
 // Thread model:
-//   ΓÇô Exactly ONE producer thread calls submit().
-//   ΓÇô Exactly ONE consumer thread (spawned internally) calls poll().
-//   ΓÇô The ring buffer enforces the SPSC contract.
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+//   – Exactly ONE producer thread calls submit().
+//   – Exactly ONE consumer thread (spawned internally) calls poll().
+//   – The ring buffer enforces the SPSC contract.
+// ─────────────────────────────────────────────────────────────────────────────
 
 class GammaEngine {
 public:
@@ -58,10 +58,10 @@ public:
     GammaEngine(GammaEngine&&)                 = delete;
     GammaEngine& operator=(GammaEngine&&)      = delete;
 
-    /// Destructor ΓÇö signals the consumer to stop and joins the thread.
+    /// Destructor — signals the consumer to stop and joins the thread.
     ~GammaEngine();
 
-    // ΓöÇΓöÇ Lifecycle ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Lifecycle ───────────────────────────────────────────────────────────
 
     /// Spawn the background consumer thread.
     void start();
@@ -72,24 +72,22 @@ public:
     /// Returns true if the consumer thread is running.
     [[nodiscard]] bool running() const noexcept;
 
-    // ΓöÇΓöÇ Producer API (single thread only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Producer API (single thread only) ───────────────────────────────────
 
     /// Enqueue a RiskEvent pointer for evaluation.
     /// Returns false if the ring buffer is full (back-pressure).
     bool submit(const RiskEvent* event) noexcept;
 
-    // ΓöÇΓöÇ Statistics ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Statistics ──────────────────────────────────────────────────────────
 
     /// Number of events successfully evaluated by the consumer.
     [[nodiscard]] std::uint64_t events_processed() const noexcept;
 
 private:
-    /// Main consumer loop ΓÇö runs on the background thread.
+    /// Main consumer loop — runs on the background thread.
     void consumer_loop();
 
-    // TODO: consider adding batch_submit() for multiple events
-
-    // ΓöÇΓöÇ Members ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Members ─────────────────────────────────────────────────────────────
 
     SPSCRingBuffer<const RiskEvent*, DEFAULT_RING_CAPACITY> ring_;
     RiskEvaluator                                           evaluator_;
