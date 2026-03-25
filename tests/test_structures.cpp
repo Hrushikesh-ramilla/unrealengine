@@ -1,10 +1,10 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — test_structures.cpp
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” test_structures.cpp
 // Unit tests for ObjectPool and SPSCRingBuffer.
 //
 // Uses standard <cassert> for zero-dependency validation.
 // Run via: cmake --build build && ctest --test-dir build --verbose
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include "memory_pool.hpp"
 #include "ring_buffer.hpp"
@@ -17,7 +17,7 @@
 #include <thread>
 #include <vector>
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Pretty-print a test result.
 static int tests_passed = 0;
@@ -30,7 +30,7 @@ static int tests_failed = 0;
 
 #define PASS()                                                               \
     do {                                                                     \
-        std::cout << " ✓\n";                                                 \
+        std::cout << " âœ“\n";                                                 \
         ++tests_passed;                                                      \
     } while (0)
 
@@ -54,14 +54,14 @@ static int tests_failed = 0;
         }                                                                    \
     } while (0)
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ObjectPool Tests
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 void test_pool_basic_allocate() {
-    TEST("ObjectPool — basic allocate returns non-null");
+    TEST("ObjectPool â€” basic allocate returns non-null");
 
-    gammaflow::ObjectPool<gammaflow::RiskEvent, 4> pool;
+    nullring::ObjectPool<nullring::RiskEvent, 4> pool;
     auto* p = pool.allocate();
     ASSERT_TRUE(p != nullptr);
 
@@ -69,14 +69,14 @@ void test_pool_basic_allocate() {
 }
 
 void test_pool_no_heap_allocation() {
-    TEST("ObjectPool — allocations come from internal storage, not heap");
+    TEST("ObjectPool â€” allocations come from internal storage, not heap");
 
-    gammaflow::ObjectPool<gammaflow::RiskEvent, 8> pool;
+    nullring::ObjectPool<nullring::RiskEvent, 8> pool;
 
     // The pool's backing storage starts at storage_base().
     auto base = reinterpret_cast<std::uintptr_t>(pool.storage_base());
 
-    // Each slot is cache-line aligned (64 bytes); total footprint ≤ 8 * 128
+    // Each slot is cache-line aligned (64 bytes); total footprint â‰¤ 8 * 128
     // (generous upper bound accounting for alignment + atomic overhead).
     constexpr std::size_t max_footprint = 8 * 128;
 
@@ -93,9 +93,9 @@ void test_pool_no_heap_allocation() {
 }
 
 void test_pool_exhaustion() {
-    TEST("ObjectPool — returns nullptr when exhausted");
+    TEST("ObjectPool â€” returns nullptr when exhausted");
 
-    gammaflow::ObjectPool<gammaflow::RiskEvent, 2> pool;
+    nullring::ObjectPool<nullring::RiskEvent, 2> pool;
     auto* a = pool.allocate();
     auto* b = pool.allocate();
     ASSERT_TRUE(a != nullptr);
@@ -109,9 +109,9 @@ void test_pool_exhaustion() {
 }
 
 void test_pool_deallocate_and_reuse() {
-    TEST("ObjectPool — deallocate makes slot available again");
+    TEST("ObjectPool â€” deallocate makes slot available again");
 
-    gammaflow::ObjectPool<gammaflow::RiskEvent, 1> pool;
+    nullring::ObjectPool<nullring::RiskEvent, 1> pool;
     auto* p = pool.allocate();
     ASSERT_TRUE(p != nullptr);
     ASSERT_TRUE(pool.allocate() == nullptr); // Exhausted.
@@ -126,9 +126,9 @@ void test_pool_deallocate_and_reuse() {
 }
 
 void test_pool_cache_line_alignment() {
-    TEST("ObjectPool — each slot is 64-byte aligned");
+    TEST("ObjectPool â€” each slot is 64-byte aligned");
 
-    gammaflow::ObjectPool<gammaflow::RiskEvent, 4> pool;
+    nullring::ObjectPool<nullring::RiskEvent, 4> pool;
     for (int i = 0; i < 4; ++i) {
         auto* p = pool.allocate();
         ASSERT_TRUE(p != nullptr);
@@ -138,14 +138,14 @@ void test_pool_cache_line_alignment() {
     PASS();
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SPSCRingBuffer Tests
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 void test_ring_basic_push_pop() {
-    TEST("RingBuffer — basic push / pop round-trip");
+    TEST("RingBuffer â€” basic push / pop round-trip");
 
-    gammaflow::SPSCRingBuffer<int, 4> rb;
+    nullring::SPSCRingBuffer<int, 4> rb;
     ASSERT_TRUE(rb.empty());
 
     ASSERT_TRUE(rb.try_push(42));
@@ -160,9 +160,9 @@ void test_ring_basic_push_pop() {
 }
 
 void test_ring_fifo_order() {
-    TEST("RingBuffer — FIFO ordering preserved");
+    TEST("RingBuffer â€” FIFO ordering preserved");
 
-    gammaflow::SPSCRingBuffer<int, 8> rb;
+    nullring::SPSCRingBuffer<int, 8> rb;
     for (int i = 0; i < 7; ++i) {       // max_size = 7
         ASSERT_TRUE(rb.try_push(i * 10));
     }
@@ -177,9 +177,9 @@ void test_ring_fifo_order() {
 }
 
 void test_ring_full_returns_false() {
-    TEST("RingBuffer — try_push returns false when full");
+    TEST("RingBuffer â€” try_push returns false when full");
 
-    gammaflow::SPSCRingBuffer<int, 4> rb; // max_size = 3
+    nullring::SPSCRingBuffer<int, 4> rb; // max_size = 3
     ASSERT_TRUE(rb.try_push(1));
     ASSERT_TRUE(rb.try_push(2));
     ASSERT_TRUE(rb.try_push(3));
@@ -191,9 +191,9 @@ void test_ring_full_returns_false() {
 }
 
 void test_ring_empty_returns_nullopt() {
-    TEST("RingBuffer — try_pop returns nullopt when empty");
+    TEST("RingBuffer â€” try_pop returns nullopt when empty");
 
-    gammaflow::SPSCRingBuffer<int, 4> rb;
+    nullring::SPSCRingBuffer<int, 4> rb;
     auto val = rb.try_pop();
     ASSERT_TRUE(!val.has_value());
 
@@ -201,11 +201,11 @@ void test_ring_empty_returns_nullopt() {
 }
 
 void test_ring_wrap_around() {
-    TEST("RingBuffer — correct behavior after index wrap-around");
+    TEST("RingBuffer â€” correct behavior after index wrap-around");
 
-    gammaflow::SPSCRingBuffer<int, 4> rb; // max_size = 3
+    nullring::SPSCRingBuffer<int, 4> rb; // max_size = 3
 
-    // Fill → drain → refill to force the indices past Capacity.
+    // Fill â†’ drain â†’ refill to force the indices past Capacity.
     for (int cycle = 0; cycle < 5; ++cycle) {
         for (int i = 0; i < 3; ++i) {
             ASSERT_TRUE(rb.try_push(cycle * 100 + i));
@@ -221,15 +221,15 @@ void test_ring_wrap_around() {
 }
 
 void test_ring_with_risk_event_pointers() {
-    TEST("RingBuffer — works with RiskEvent* payloads");
+    TEST("RingBuffer â€” works with RiskEvent* payloads");
 
-    gammaflow::RiskEvent event{};
+    nullring::RiskEvent event{};
     event.id = 1001;
     event.timestamp_ns = 123456789;
-    event.price = gammaflow::Price(99, 95000000);  // 99.95
-    event.quantity = gammaflow::Quantity(50);
+    event.price = nullring::Price(99, 95000000);  // 99.95
+    event.quantity = nullring::Quantity(50);
 
-    gammaflow::SPSCRingBuffer<gammaflow::RiskEvent*, 4> rb;
+    nullring::SPSCRingBuffer<nullring::RiskEvent*, 4> rb;
     ASSERT_TRUE(rb.try_push(&event));
 
     auto val = rb.try_pop();
@@ -241,10 +241,10 @@ void test_ring_with_risk_event_pointers() {
 }
 
 void test_ring_spsc_concurrent() {
-    TEST("RingBuffer — concurrent SPSC producer/consumer");
+    TEST("RingBuffer â€” concurrent SPSC producer/consumer");
 
     constexpr int N = 100'000;
-    gammaflow::SPSCRingBuffer<int, 1024> rb;
+    nullring::SPSCRingBuffer<int, 1024> rb;
 
     // Producer thread.
     std::thread producer([&] {
@@ -255,7 +255,7 @@ void test_ring_spsc_concurrent() {
         }
     });
 
-    // Consumer thread — verify FIFO ordering.
+    // Consumer thread â€” verify FIFO ordering.
     int expected = 0;
     bool order_ok = true;
     std::thread consumer([&] {
@@ -280,23 +280,23 @@ void test_ring_spsc_concurrent() {
     PASS();
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Main
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 int main() {
-    std::cout << "\n══════════════════════════════════════════\n"
-              << " GammaFlow — Data Structure Tests\n"
-              << "══════════════════════════════════════════\n\n";
+    std::cout << "\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n"
+              << " NullRing â€” Data Structure Tests\n"
+              << "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n";
 
-    std::cout << "── ObjectPool ──\n";
+    std::cout << "â”€â”€ ObjectPool â”€â”€\n";
     test_pool_basic_allocate();
     test_pool_no_heap_allocation();
     test_pool_exhaustion();
     test_pool_deallocate_and_reuse();
     test_pool_cache_line_alignment();
 
-    std::cout << "\n── SPSCRingBuffer ──\n";
+    std::cout << "\nâ”€â”€ SPSCRingBuffer â”€â”€\n";
     test_ring_basic_push_pop();
     test_ring_fifo_order();
     test_ring_full_returns_false();
@@ -305,10 +305,10 @@ int main() {
     test_ring_with_risk_event_pointers();
     test_ring_spsc_concurrent();
 
-    std::cout << "\n──────────────────────────────────────────\n"
+    std::cout << "\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n"
               << " Results: " << tests_passed << " passed, "
               << tests_failed << " failed\n"
-              << "──────────────────────────────────────────\n\n";
+              << "â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n\n";
 
     return tests_failed > 0 ? 1 : 0;
 }

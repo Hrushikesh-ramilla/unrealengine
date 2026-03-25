@@ -1,7 +1,7 @@
-#pragma once
+﻿#pragma once
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — memory_pool.hpp
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” memory_pool.hpp
 // Lock-free, cache-aligned object pool with O(1) allocate / deallocate.
 //
 // Design rationale:
@@ -10,7 +10,7 @@
 //     multiple threads can allocate/deallocate concurrently without mutexes.
 //   - Each slot is aligned to a 64-byte cache line to prevent false sharing
 //     when adjacent slots are accessed by different CPU cores.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include <atomic>
 #include <array>
@@ -20,23 +20,23 @@
 #include <new>
 #include <type_traits>
 
-namespace gammaflow {
+namespace nullring {
 
 /// Sentinel value indicating the end of the free-list chain.
 inline constexpr std::uint32_t POOL_NULL = UINT32_MAX;
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // ObjectPool<T, Capacity>
 //
 // Template parameters:
-//   T        — the object type stored in the pool (must be trivially
+//   T        â€” the object type stored in the pool (must be trivially
 //              destructible so we can skip per-object cleanup).
-//   Capacity — maximum number of live objects the pool can provide.
+//   Capacity â€” maximum number of live objects the pool can provide.
 //
 // Memory layout:
 //   slots_[i] is aligned to a 64-byte boundary so that two slots accessed
 //   by different threads will never share a cache line.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -50,10 +50,10 @@ class ObjectPool {
                   "Capacity must be < UINT32_MAX (reserved as sentinel)");
 
 public:
-    // ── Construction ────────────────────────────────────────────────────────
+    // â”€â”€ Construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     ObjectPool() noexcept {
-        // Build the initial free-list: slot 0 → 1 → 2 → … → POOL_NULL.
+        // Build the initial free-list: slot 0 â†’ 1 â†’ 2 â†’ â€¦ â†’ POOL_NULL.
         for (std::uint32_t i = 0; i < Capacity - 1; ++i) {
             slots_[i].next.store(i + 1, std::memory_order_relaxed);
         }
@@ -68,7 +68,7 @@ public:
     ObjectPool(ObjectPool&&)                 = delete;
     ObjectPool& operator=(ObjectPool&&)      = delete;
 
-    // ── Allocate ────────────────────────────────────────────────────────────
+    // â”€â”€ Allocate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Pop the head of the free-list and return a pointer to the raw storage.
     /// Returns nullptr if the pool is exhausted.
@@ -85,13 +85,13 @@ public:
                                             std::memory_order_acquire)) {
                 return object_ptr(old_head);
             }
-            // CAS failed — old_head has been refreshed by compare_exchange_weak.
+            // CAS failed â€” old_head has been refreshed by compare_exchange_weak.
         }
 
         return nullptr; // Pool exhausted.
     }
 
-    // ── Deallocate ──────────────────────────────────────────────────────────
+    // â”€â”€ Deallocate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Push the slot back onto the free-list head.
     /// The caller must ensure `ptr` was obtained from this pool.
@@ -108,7 +108,7 @@ public:
                                               std::memory_order_acquire));
     }
 
-    // ── Introspection ───────────────────────────────────────────────────────
+    // â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Returns the compile-time capacity of the pool.
     [[nodiscard]] static constexpr std::size_t capacity() noexcept {
@@ -121,10 +121,10 @@ public:
     }
 
 private:
-    // ── Slot ────────────────────────────────────────────────────────────────
+    // â”€â”€ Slot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Each slot is aligned to a hardware cache line (64 bytes) and holds:
-    //   • Raw storage large enough for one T object.
-    //   • An atomic next-index for the lock-free free-list.
+    //   â€¢ Raw storage large enough for one T object.
+    //   â€¢ An atomic next-index for the lock-free free-list.
     // The padding ensures no two slots ever share a cache line.
 
     struct alignas(64) Slot {
@@ -138,7 +138,7 @@ private:
     static_assert(sizeof(Slot) % 64 == 0,
                   "Slot must be a multiple of 64 bytes (cache-line aligned)");
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Interpret the raw storage of slot `i` as a T*.
     [[nodiscard]] T* object_ptr(std::uint32_t i) noexcept {
@@ -153,9 +153,9 @@ private:
             (byte_ptr - base_ptr) / sizeof(Slot));
     }
 
-    // ── Data ────────────────────────────────────────────────────────────────
+    // â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// The slot array — all memory is allocated here (stack or static).
+    /// The slot array â€” all memory is allocated here (stack or static).
     std::array<Slot, Capacity> slots_;
 
     /// Head of the lock-free free-list (Treiber stack).
@@ -166,4 +166,4 @@ private:
 #pragma warning(pop)
 #endif
 
-} // namespace gammaflow
+} // namespace nullring

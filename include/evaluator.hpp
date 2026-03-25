@@ -1,55 +1,55 @@
-#pragma once
+﻿#pragma once
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — evaluator.hpp
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” evaluator.hpp
 // Zero-allocation fuzzy-rule risk evaluator.
 //
 // Design rationale:
-//   - All arithmetic uses FixedPoint — no floating-point instructions at all.
+//   - All arithmetic uses FixedPoint â€” no floating-point instructions at all.
 //   - The decision tree is fully branchless where possible; remaining branches
 //     are structured as a flat if/else chain for branch-predictor friendliness.
 //   - No heap allocation, no virtual dispatch, no exceptions on the hot path.
-//   - Risk score is returned as a raw int32 in [0, 1000] — higher means
+//   - Risk score is returned as a raw int32 in [0, 1000] â€” higher means
 //     riskier.  Downstream systems can map this to tiers (LOW / MED / HIGH /
 //     CRITICAL) without additional computation.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include "types.hpp"
 #include "models.hpp"
 
 #include <cstdint>
 
-namespace gammaflow {
+namespace nullring {
 
 /// Risk tiers for human-readable classification.
 enum class RiskTier : std::uint8_t {
-    LOW      = 0,   //   0 – 249
-    MEDIUM   = 1,   // 250 – 499
-    HIGH     = 2,   // 500 – 749
-    CRITICAL = 3,   // 750 – 1000
+    LOW      = 0,   //   0 â€“ 249
+    MEDIUM   = 1,   // 250 â€“ 499
+    HIGH     = 2,   // 500 â€“ 749
+    CRITICAL = 3,   // 750 â€“ 1000
 };
 
-/// Result of a single risk evaluation — tightly packed, trivially copyable.
+/// Result of a single risk evaluation â€” tightly packed, trivially copyable.
 struct RiskResult {
     std::uint64_t event_id;     // Correlates back to the source RiskEvent.
-    std::int32_t  score;        // [0, 1000] — higher ⟹ riskier.
+    std::int32_t  score;        // [0, 1000] â€” higher âŸ¹ riskier.
     RiskTier      tier;         // Derived classification.
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // RiskEvaluator
 //
 // Stateless, thread-safe evaluator.  All thresholds are compile-time
 // constants expressed in FixedPoint, so the optimizer can inline them as
-// immediate operands — no memory loads required.
-// ─────────────────────────────────────────────────────────────────────────────
+// immediate operands â€” no memory loads required.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class RiskEvaluator {
 public:
-    // ── Compile-time threshold constants ────────────────────────────────────
+    // â”€â”€ Compile-time threshold constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // All values use FixedPoint::from_raw() so there is zero runtime cost.
 
-    // ── Price thresholds (8 decimal places) ─────────────────────────────────
+    // â”€â”€ Price thresholds (8 decimal places) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //   penny_threshold  =    1.00
     //   low_price        =   10.00
     //   mid_price        =  100.00
@@ -60,7 +60,7 @@ public:
     static constexpr Price mid_price       = Price::from_raw(100'00000000LL);
     static constexpr Price high_price      = Price::from_raw(1000'00000000LL);
 
-    // ── Quantity thresholds (4 decimal places) ──────────────────────────────
+    // â”€â”€ Quantity thresholds (4 decimal places) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //   tiny_qty   =      10
     //   small_qty  =     100
     //   large_qty  =   10000
@@ -71,14 +71,14 @@ public:
     static constexpr Quantity large_qty = Quantity::from_raw(10000'0000LL);
     static constexpr Quantity huge_qty  = Quantity::from_raw(100000'0000LL);
 
-    // ── Scoring weights (applied via integer multiply + shift) ──────────────
+    // â”€â”€ Scoring weights (applied via integer multiply + shift) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Using bit shifts instead of division keeps the hot path free of
     // expensive idiv instructions.
 
-    static constexpr std::int32_t WEIGHT_PRICE_COMPONENT = 5;   // × 2^5 = 32
-    static constexpr std::int32_t WEIGHT_QTY_COMPONENT   = 4;   // × 2^4 = 16
+    static constexpr std::int32_t WEIGHT_PRICE_COMPONENT = 5;   // Ã— 2^5 = 32
+    static constexpr std::int32_t WEIGHT_QTY_COMPONENT   = 4;   // Ã— 2^4 = 16
 
-    // ── Core evaluation ─────────────────────────────────────────────────────
+    // â”€â”€ Core evaluation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Evaluate a single RiskEvent.  Returns a RiskResult with no heap
     /// allocation and no floating-point arithmetic.
@@ -88,17 +88,17 @@ public:
     ///   2. Compute a qty_score   in [0, 500] based on quantity tier.
     ///   3. Combine: raw = price_score + qty_score, clamped to [0, 1000].
     ///   4. Apply cross-factor penalties:
-    ///        – Penny stock + large quantity → amplified risk.
-    ///        – High-value instrument + huge quantity → amplified risk.
+    ///        â€“ Penny stock + large quantity â†’ amplified risk.
+    ///        â€“ High-value instrument + huge quantity â†’ amplified risk.
     [[nodiscard]] RiskResult evaluate(const RiskEvent& event) const noexcept {
 
-        // ── 0. Structural logic (Predictable Branches) ──────────────────────
+        // â”€â”€ 0. Structural logic (Predictable Branches) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // The CPU branch predictor easily handles these baseline structural checks.
         if (event.quantity.raw() <= 0 || event.price.raw() <= 0) {
             return RiskResult{event.id, 0, RiskTier::LOW};
         }
 
-        // ── 1. Price component (Branchless) ─────────────────────────────────
+        // â”€â”€ 1. Price component (Branchless) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         std::int32_t price_score = 
               (event.price < penny_threshold) * 400
             + (event.price >= penny_threshold && event.price < low_price) * 300
@@ -106,7 +106,7 @@ public:
             + (event.price >= mid_price && event.price < high_price) * 50
             + (event.price >= high_price) * 20;
 
-        // ── 2. Quantity component (Branchless) ──────────────────────────────
+        // â”€â”€ 2. Quantity component (Branchless) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         std::int32_t qty_score = 
               (event.quantity < tiny_qty) * 10
             + (event.quantity >= tiny_qty && event.quantity < small_qty) * 50
@@ -114,13 +114,13 @@ public:
             + (event.quantity >= large_qty && event.quantity < huge_qty) * 350
             + (event.quantity >= huge_qty) * 500;
 
-        // ── 3. Cross-factor amplification (Branchless) ──────────────────────
+        // â”€â”€ 3. Cross-factor amplification (Branchless) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         std::int32_t penalty = 
               (event.price < penny_threshold && event.quantity >= large_qty) * 200
             + (event.price >= high_price && event.quantity >= huge_qty) * 150
             + (event.quantity >= huge_qty) * 50;
 
-        // ── 4. Combine & clamp (Predictable Branches) ───────────────────────
+        // â”€â”€ 4. Combine & clamp (Predictable Branches) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         std::int32_t score = price_score + qty_score + penalty;
         
         if (score > 1000) {
@@ -129,7 +129,7 @@ public:
             score = 0;
         }
 
-        // ── 5. Derive tier (Predictable Branches) ───────────────────────────
+        // â”€â”€ 5. Derive tier (Predictable Branches) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         RiskTier tier;
         if (score >= 750)      tier = RiskTier::CRITICAL;
         else if (score >= 500) tier = RiskTier::HIGH;
@@ -140,4 +140,4 @@ public:
     }
 };
 
-} // namespace gammaflow
+} // namespace nullring

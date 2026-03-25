@@ -1,19 +1,19 @@
-#pragma once
+﻿#pragma once
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — ring_buffer.hpp
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” ring_buffer.hpp
 // Lock-free Single-Producer Single-Consumer (SPSC) ring buffer.
 //
 // Design rationale:
 //   - Exactly one writer thread and one reader thread operate concurrently.
 //   - Memory ordering uses acquire/release semantics on the head (consumer)
-//     and tail (producer) indices — no sequentially-consistent fences, no
+//     and tail (producer) indices â€” no sequentially-consistent fences, no
 //     mutexes, and no OS-level synchronization primitives.
 //   - The buffer capacity is always a power of two so that modular indexing
 //     reduces to a bitwise AND, avoiding expensive integer division.
 //   - Head and tail are placed on separate cache lines to eliminate false
 //     sharing between the producer and consumer cores.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include <atomic>
 #include <array>
@@ -22,17 +22,17 @@
 #include <optional>
 #include <type_traits>
 
-namespace gammaflow {
+namespace nullring {
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // SPSCRingBuffer<T, Capacity>
 //
 // Template parameters:
-//   T        — element type (typically a pointer or trivially copyable struct).
-//   Capacity — must be a power of two.  The usable capacity is (Capacity - 1)
+//   T        â€” element type (typically a pointer or trivially copyable struct).
+//   Capacity â€” must be a power of two.  The usable capacity is (Capacity - 1)
 //              because one slot is always left empty to distinguish full from
 //              empty state.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -47,7 +47,7 @@ class SPSCRingBuffer {
                   "Capacity must be a power of two for fast modular indexing");
 
 public:
-    // ── Construction ────────────────────────────────────────────────────────
+    // â”€â”€ Construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     SPSCRingBuffer() noexcept
         : head_{0}
@@ -60,7 +60,7 @@ public:
     SPSCRingBuffer(SPSCRingBuffer&&)                 = delete;
     SPSCRingBuffer& operator=(SPSCRingBuffer&&)      = delete;
 
-    // ── Producer API (single writer thread only) ────────────────────────────
+    // â”€â”€ Producer API (single writer thread only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Try to enqueue an element.  Returns true on success, false if full.
     ///
@@ -80,12 +80,12 @@ public:
 
         buffer_[current_tail] = item;
 
-        // Publish the new tail — the consumer may now see this element.
+        // Publish the new tail â€” the consumer may now see this element.
         tail_.store(next_tail, std::memory_order_release);
         return true;
     }
 
-    // ── Consumer API (single reader thread only) ────────────────────────────
+    // â”€â”€ Consumer API (single reader thread only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Try to dequeue an element.  Returns std::nullopt if empty.
     ///
@@ -104,12 +104,12 @@ public:
 
         T item = buffer_[current_head];
 
-        // Advance head — the producer may now reuse this slot.
+        // Advance head â€” the producer may now reuse this slot.
         head_.store(increment(current_head), std::memory_order_release);
         return item;
     }
 
-    // ── Introspection ───────────────────────────────────────────────────────
+    // â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Approximate number of elements currently in the buffer.
     /// Safe to call from any thread, but the value may be stale.
@@ -136,7 +136,7 @@ public:
     }
 
 private:
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     static constexpr std::size_t mask_ = Capacity - 1;
 
@@ -145,14 +145,14 @@ private:
         return (idx + 1) & mask_;
     }
 
-    // ── Data ────────────────────────────────────────────────────────────────
+    // â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // head_ and tail_ are on separate cache lines to avoid false sharing
     // between the producer (writes tail_) and consumer (writes head_).
 
-    /// Consumer index — only the reader thread writes this.
+    /// Consumer index â€” only the reader thread writes this.
     alignas(64) std::atomic<std::size_t> head_;
 
-    /// Producer index — only the writer thread writes this.
+    /// Producer index â€” only the writer thread writes this.
     alignas(64) std::atomic<std::size_t> tail_;
 
     /// The underlying fixed-size storage.
@@ -163,4 +163,4 @@ private:
 #pragma warning(pop)
 #endif
 
-} // namespace gammaflow
+} // namespace nullring

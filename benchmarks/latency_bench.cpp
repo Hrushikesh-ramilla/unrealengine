@@ -1,10 +1,10 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — latency_bench.cpp
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” latency_bench.cpp
 // High-resolution end-to-end latency benchmark.
 //
-// Pushes 1,000,000 RiskEvents through the SPSC ring buffer → RiskEvaluator
+// Pushes 1,000,000 RiskEvents through the SPSC ring buffer â†’ RiskEvaluator
 // pipeline and measures per-event latency using __rdtsc() CPU cycles.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include "ring_buffer.hpp"
 #include "evaluator.hpp"
@@ -34,13 +34,13 @@
 #include <thread>
 #include <vector>
 
-// ── Configuration ───────────────────────────────────────────────────────────
+// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 static constexpr std::size_t NUM_EVENTS      = 1'000'000;
 static constexpr std::size_t RING_CAPACITY   = 65536;   // Must be power of two.
 static constexpr std::size_t WARMUP_EVENTS   = 10'000;  // Discard first N for JIT warm-up.
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 using Clock     = std::chrono::high_resolution_clock;
 using TimePoint = Clock::time_point;
@@ -66,9 +66,9 @@ static double get_tsc_to_ns_multiplier() {
 /// A perfectly padded structure to ensure exactly one event per cache line.
 /// Eliminates false sharing between producer enqueue and consumer dequeue.
 struct alignas(64) PaddedEvent {
-    gammaflow::RiskEvent event;
+    nullring::RiskEvent event;
     std::uint64_t enqueue_tsc;
-    char padding[64 - sizeof(gammaflow::RiskEvent) - sizeof(std::uint64_t)];
+    char padding[64 - sizeof(nullring::RiskEvent) - sizeof(std::uint64_t)];
 };
 
 // Check MSVC C4324 suppression works inside the ring buffer, but this struct
@@ -78,8 +78,8 @@ static_assert(sizeof(PaddedEvent) == 64, "PaddedEvent must exactly fill one cach
 
 
 /// Build a synthetic RiskEvent with varying fields to exercise evaluator code paths.
-static gammaflow::RiskEvent make_event(std::uint64_t seq) {
-    gammaflow::RiskEvent ev{};
+static nullring::RiskEvent make_event(std::uint64_t seq) {
+    nullring::RiskEvent ev{};
     ev.id = seq;
     ev.timestamp_ns = 0; // Not used in this benchmark anymore.
 
@@ -97,7 +97,7 @@ static gammaflow::RiskEvent make_event(std::uint64_t seq) {
       50000000000LL,       // 500.00  (high price)
      500000000000LL,       // 5000.00 (ultra-high)
     };
-    ev.price = gammaflow::Price::from_raw(prices[seq % prices.size()]);
+    ev.price = nullring::Price::from_raw(prices[seq % prices.size()]);
 
     static constexpr std::array<std::int64_t, 5> quantities = {
            50000LL,   //       5
@@ -106,7 +106,7 @@ static gammaflow::RiskEvent make_event(std::uint64_t seq) {
        500000000LL,   //   50000
       5000000000LL,   //  500000
     };
-    ev.quantity = gammaflow::Quantity::from_raw(quantities[seq % quantities.size()]);
+    ev.quantity = nullring::Quantity::from_raw(quantities[seq % quantities.size()]);
 
     return ev;
 }
@@ -121,25 +121,25 @@ static void print_stat(const char* label, std::uint64_t cycles, double tsc_to_ns
     if (ns < 1'000) {
         std::cout << "  (" << std::fixed << std::setprecision(0) << ns << " ns)";
     } else if (ns < 1'000'000) {
-        std::cout << "  (" << std::fixed << std::setprecision(2) << (ns / 1'000.0) << " µs)";
+        std::cout << "  (" << std::fixed << std::setprecision(2) << (ns / 1'000.0) << " Âµs)";
     } else {
         std::cout << "  (" << std::fixed << std::setprecision(2) << (ns / 1'000'000.0) << " ms)";
     }
     std::cout << "\n";
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Benchmark 1: Evaluator-only (single-threaded, no ring buffer)
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 static void bench_evaluator_only(double tsc_to_ns) {
-    std::cout << "── Benchmark 1: Evaluator-only (single-threaded, RDTSC) ──\n\n";
+    std::cout << "â”€â”€ Benchmark 1: Evaluator-only (single-threaded, RDTSC) â”€â”€\n\n";
 
-    gammaflow::RiskEvaluator evaluator;
+    nullring::RiskEvaluator evaluator;
     std::vector<std::uint64_t> latencies;
     latencies.reserve(NUM_EVENTS);
 
-    std::vector<gammaflow::RiskEvent> events(NUM_EVENTS);
+    std::vector<nullring::RiskEvent> events(NUM_EVENTS);
     for (std::size_t i = 0; i < NUM_EVENTS; ++i) {
         events[i] = make_event(i);
     }
@@ -181,29 +181,29 @@ static void bench_evaluator_only(double tsc_to_ns) {
     std::cout << "\n  Events evaluated: " << NUM_EVENTS << "\n\n";
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Benchmark 2: End-to-end (producer → SPSC ring → evaluator, two threads)
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// Benchmark 2: End-to-end (producer â†’ SPSC ring â†’ evaluator, two threads)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 static void bench_end_to_end(double tsc_to_ns) {
-    std::cout << "── Benchmark 2: End-to-end (Producer → cache-aligned ring → Evaluator) ──\n\n";
+    std::cout << "â”€â”€ Benchmark 2: End-to-end (Producer â†’ cache-aligned ring â†’ Evaluator) â”€â”€\n\n";
 
     // We pass PaddedEvent BY VALUE. At 64 bytes perfectly aligned, each enqueue
     // writes exactly 1 cache line, completely isolating adjacent events avoiding false sharing.
     // Heap-allocate to prevent stack overflow (64 bytes * 65536 = 4MB > 1MB Windows default stack).
-    auto ring = std::make_unique<gammaflow::SPSCRingBuffer<PaddedEvent, RING_CAPACITY>>();
-    gammaflow::RiskEvaluator evaluator;
+    auto ring = std::make_unique<nullring::SPSCRingBuffer<PaddedEvent, RING_CAPACITY>>();
+    nullring::RiskEvaluator evaluator;
 
     std::vector<std::uint64_t> latencies(NUM_EVENTS, 0);
     std::atomic<bool> consumer_done{false};
 
-    std::vector<gammaflow::RiskEvent> events(NUM_EVENTS);
+    std::vector<nullring::RiskEvent> events(NUM_EVENTS);
     for (std::size_t i = 0; i < NUM_EVENTS; ++i) {
         events[i] = make_event(i);
     }
 
 #ifdef _WIN32
-    // ── OS Memory Locking ──────────────────────────────────────────────────
+    // â”€â”€ OS Memory Locking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Expand working set and pin hot arrays into physical RAM to prevent page faults.
     SIZE_T min_ws, max_ws;
     HANDLE hProcess = GetCurrentProcess();
@@ -215,9 +215,9 @@ static void bench_end_to_end(double tsc_to_ns) {
     }
     VirtualLock(ring.get(), sizeof(*ring));
     VirtualLock(latencies.data(), latencies.capacity() * sizeof(std::uint64_t));
-    VirtualLock(events.data(), events.capacity() * sizeof(gammaflow::RiskEvent));
+    VirtualLock(events.data(), events.capacity() * sizeof(nullring::RiskEvent));
 
-    // ── TLB & Cache Pre-Warming ─────────────────────────────────────────────
+    // â”€â”€ TLB & Cache Pre-Warming â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Walk the entire ring buffer once to force the OS to map all virtual pages
     // to physical pages, loading the TLB and preventing first-touch penalties.
     PaddedEvent dummy_ev{};
@@ -230,7 +230,7 @@ static void bench_end_to_end(double tsc_to_ns) {
     }
 #endif
 
-    // ── Consumer thread ─────────────────────────────────────────────────
+    // â”€â”€ Consumer thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     std::thread consumer([&] {
 #ifdef _WIN32
         SetThreadAffinityMask(GetCurrentThread(), 8); // Core 3
@@ -265,7 +265,7 @@ static void bench_end_to_end(double tsc_to_ns) {
         consumer_done.store(true, std::memory_order_release);
     });
 
-    // ── Producer (this thread) ──────────────────────────────────────────
+    // â”€â”€ Producer (this thread) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #ifdef _WIN32
     SetThreadAffinityMask(GetCurrentThread(), 4); // Core 2
     SetThreadIdealProcessor(GetCurrentThread(), 2);
@@ -275,7 +275,7 @@ static void bench_end_to_end(double tsc_to_ns) {
 
     auto next_tick = Clock::now();
     for (std::size_t i = 0; i < NUM_EVENTS; ++i) {
-        // Spin-wait 1µs to simulate a realistic network line rate (~1M msgs/sec)
+        // Spin-wait 1Âµs to simulate a realistic network line rate (~1M msgs/sec)
         // and eliminate burst queueing delay.
         if (i > 0) {
             next_tick += std::chrono::microseconds(1);
@@ -300,7 +300,7 @@ static void bench_end_to_end(double tsc_to_ns) {
 
     consumer.join();
 
-    // ── Statistics ───────────────────────────────────────────────────────
+    // â”€â”€ Statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     auto valid_begin = latencies.begin() + WARMUP_EVENTS;
     auto valid_end = latencies.end();
     std::size_t valid_count = NUM_EVENTS - WARMUP_EVENTS;
@@ -327,16 +327,16 @@ static void bench_end_to_end(double tsc_to_ns) {
     std::cout << "\n  Events processed: " << valid_count << " (excluding " << WARMUP_EVENTS << " warmup)\n\n";
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Benchmark 3: Throughput (events / second)
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 static void bench_throughput() {
-    std::cout << "── Benchmark 3: Throughput (events/sec) ──\n\n";
+    std::cout << "â”€â”€ Benchmark 3: Throughput (events/sec) â”€â”€\n\n";
 
-    gammaflow::RiskEvaluator evaluator;
+    nullring::RiskEvaluator evaluator;
 
-    std::vector<gammaflow::RiskEvent> events(NUM_EVENTS);
+    std::vector<nullring::RiskEvent> events(NUM_EVENTS);
     for (std::size_t i = 0; i < NUM_EVENTS; ++i) {
         events[i] = make_event(i);
     }
@@ -358,9 +358,9 @@ static void bench_throughput() {
               << events_per_sec << " events/sec\n\n";
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Main
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 int main() {
 #ifdef _WIN32
@@ -368,16 +368,16 @@ int main() {
 #endif
 
     std::cout << "\n"
-              << "╔══════════════════════════════════════════════════════════╗\n"
-              << "║         GammaFlow — Latency Benchmarking Suite          ║\n"
-              << "╠══════════════════════════════════════════════════════════╣\n"
-              << "║  Events:    " << std::setw(10) << NUM_EVENTS
-              << "                                ║\n"
-              << "║  Ring Size: " << std::setw(10) << RING_CAPACITY
-              << "                                ║\n"
-              << "║  Warm-up:   " << std::setw(10) << WARMUP_EVENTS
-              << "                                ║\n"
-              << "╚══════════════════════════════════════════════════════════╝\n\n";
+              << "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—\n"
+              << "â•‘         NullRing â€” Latency Benchmarking Suite          â•‘\n"
+              << "â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£\n"
+              << "â•‘  Events:    " << std::setw(10) << NUM_EVENTS
+              << "                                â•‘\n"
+              << "â•‘  Ring Size: " << std::setw(10) << RING_CAPACITY
+              << "                                â•‘\n"
+              << "â•‘  Warm-up:   " << std::setw(10) << WARMUP_EVENTS
+              << "                                â•‘\n"
+              << "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n";
 
     std::cout << "  Calibrating RDTSC clock... ";
     double tsc_to_ns = get_tsc_to_ns_multiplier();
@@ -387,9 +387,9 @@ int main() {
     bench_end_to_end(tsc_to_ns);
     bench_throughput();
 
-    std::cout << "══════════════════════════════════════════════════════════\n"
+    std::cout << "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n"
               << "  Benchmark complete.\n"
-              << "══════════════════════════════════════════════════════════\n\n";
+              << "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n";
 
     return 0;
 }

@@ -1,8 +1,8 @@
-# 🚀 GammaFlow
+﻿# ðŸš€ NullRing
 
 ### Ultra-Low Latency C++20 Execution Engine
 
-*Deterministic • Cache-Aware • Hardware-Constrained Execution*
+*Deterministic â€¢ Cache-Aware â€¢ Hardware-Constrained Execution*
 
 ---
 
@@ -21,9 +21,9 @@
 
 ---
 
-## 🔬 Abstract
+## ðŸ”¬ Abstract
 
-GammaFlow is a deterministic, ultra-low latency C++20 execution pipeline designed for high-frequency trading environments. It processes streaming data in **sub-200 nanoseconds**, exploring the practical limits of user-space performance on modern x86 architectures.
+NullRing is a deterministic, ultra-low latency C++20 execution pipeline designed for high-frequency trading environments. It processes streaming data in **sub-200 nanoseconds**, exploring the practical limits of user-space performance on modern x86 architectures.
 
 The system is engineered by systematically eliminating all avoidable abstraction overhead and aligning execution with:
 
@@ -32,13 +32,13 @@ The system is engineered by systematically eliminating all avoidable abstraction
 * Inter-core data transfer latency
 * OS scheduling and interrupt behavior
 
-> GammaFlow operates at the boundary where latency is no longer a software problem, but a function of cache coherency physics and system-level interruptions.
+> NullRing operates at the boundary where latency is no longer a software problem, but a function of cache coherency physics and system-level interruptions.
 
 ---
 
-## 🧠 Overview
+## ðŸ§  Overview
 
-GammaFlow is not a throughput-optimized system.
+NullRing is not a throughput-optimized system.
 It is a **deterministic latency pipeline** designed to answer:
 
 > *What is the minimum achievable latency of a user-space system when all software overhead is removed?*
@@ -47,7 +47,7 @@ The result:
 
 * **~92ns lower-bound execution (unfenced pipeline floor)**
 * **~142ns median deterministic latency (fully fenced, aligned, measured)**
-* **~2–18µs tail latency (OS + hardware interrupt domain)**
+* **~2â€“18Âµs tail latency (OS + hardware interrupt domain)**
 
 Execution is reduced to:
 
@@ -55,76 +55,76 @@ Execution is reduced to:
 
 ---
 
-## 🧠 Design Philosophy
+## ðŸ§  Design Philosophy
 
-GammaFlow is built on a hardware-first philosophy:
+NullRing is built on a hardware-first philosophy:
 
 > Modern latency is dominated by microarchitectural behavior, not algorithmic complexity.
 
 ### This enforces strict constraints:
 
-* ❌ No dynamic memory allocation (`new`, `malloc`)
+* âŒ No dynamic memory allocation (`new`, `malloc`)
 
-* ❌ No locks, mutexes, or kernel primitives
+* âŒ No locks, mutexes, or kernel primitives
 
-* ❌ No syscalls in the hot path
+* âŒ No syscalls in the hot path
 
-* ❌ No scheduler dependence during steady-state
+* âŒ No scheduler dependence during steady-state
 
-* ✅ Cache-line aligned data structures
+* âœ… Cache-line aligned data structures
 
-* ✅ Explicit memory ordering (`acquire/release`)
+* âœ… Explicit memory ordering (`acquire/release`)
 
-* ✅ Core affinity and isolation
+* âœ… Core affinity and isolation
 
-* ✅ Branch prediction-aware execution design
+* âœ… Branch prediction-aware execution design
 
 ---
 
-## 🏗️ System Architecture
+## ðŸ—ï¸ System Architecture
 
 <p align="center">
-  <img src="assets/architecture.png" alt="GammaFlow System Architecture" width="100%">
+  <img src="assets/architecture.png" alt="NullRing System Architecture" width="100%">
 </p>
 
-GammaFlow follows a strictly isolated dual-core execution topology:
+NullRing follows a strictly isolated dual-core execution topology:
 
-* **Core 2 → Producer**
-* **Core 3 → Consumer**
+* **Core 2 â†’ Producer**
+* **Core 3 â†’ Consumer**
 
 No syscalls or kernel transitions occur in the hot path.
 
 ---
 
-## 🔁 End-to-End Data Flow
+## ðŸ” End-to-End Data Flow
 
 ```text
 Producer (Core 2)
-    ↓
-Store → Cache Line enters Modified (MESI)
-    ↓
+    â†“
+Store â†’ Cache Line enters Modified (MESI)
+    â†“
 SPSC Ring Buffer (Cache-Aligned, Lock-Free)
-    ↓
-Cache Line Ownership Transfer (MESI, ~50–150 cycles)
-    ↓
+    â†“
+Cache Line Ownership Transfer (MESI, ~50â€“150 cycles)
+    â†“
 Consumer (Core 3, Acquire Load)
-    ↓
+    â†“
 RiskEvaluator::evaluate()
-    ↓
+    â†“
 Branchless + Predictable Hybrid Compute
 ```
 
 ---
 
-## ⚙️ Core Components
+## âš™ï¸ Core Components
 
 ---
 
-### 🧩 1. SPSC Ring Buffer
+### ðŸ§© 1. SPSC Ring Buffer
 
 #### Structural Properties
 
-* Capacity: **65536 (2¹⁶)**
+* Capacity: **65536 (2Â¹â¶)**
 * Strict Single-Producer Single-Consumer model
 * Wait-free on the hot path
 * No contention, no locking
@@ -146,9 +146,9 @@ next = (idx + 1) & mask_;
 
 ```cpp
 struct alignas(64) PaddedEvent {
-    gammaflow::RiskEvent event;
+    nullring::RiskEvent event;
     std::uint64_t enqueue_tsc;
-    char padding[64 - sizeof(gammaflow::RiskEvent) - sizeof(std::uint64_t)];
+    char padding[64 - sizeof(nullring::RiskEvent) - sizeof(std::uint64_t)];
 };
 ```
 
@@ -183,9 +183,9 @@ Guarantee:
 
 ---
 
-### 🧠 2. Risk Evaluator (Hybrid Compute Pipeline)
+### ðŸ§  2. Risk Evaluator (Hybrid Compute Pipeline)
 
-GammaFlow deliberately avoids both:
+NullRing deliberately avoids both:
 
 * full branching (misprediction risk)
 * fully branchless everywhere (wasteful for predictable cases)
@@ -194,7 +194,7 @@ Instead, it uses a hybrid model.
 
 ---
 
-#### ✔ Structural Path (Predictable Branching)
+#### âœ” Structural Path (Predictable Branching)
 
 ```cpp
 if (event.quantity.raw() <= 0 || event.price.raw() <= 0) {
@@ -207,7 +207,7 @@ if (event.quantity.raw() <= 0 || event.price.raw() <= 0) {
 
 ---
 
-#### ✔ Algorithmic Path (Branchless Arithmetic)
+#### âœ” Algorithmic Path (Branchless Arithmetic)
 
 ```cpp
 std::int32_t price_score =
@@ -221,31 +221,31 @@ std::int32_t price_score =
 
 ---
 
-### 🔄 3. Inter-Core Communication (MESI Physics)
+### ðŸ”„ 3. Inter-Core Communication (MESI Physics)
 
-The dominant cost in GammaFlow:
+The dominant cost in NullRing:
 
 > Cache line ownership transfer between CPU cores
 
 #### Flow:
 
-1. Producer writes → cache line enters **Modified (M)** state
-2. Consumer attempts read → invalidation + transfer triggered
-3. Ownership migrates → consumer reads locally
+1. Producer writes â†’ cache line enters **Modified (M)** state
+2. Consumer attempts read â†’ invalidation + transfer triggered
+3. Ownership migrates â†’ consumer reads locally
 
 #### Latency:
 
-* ~50–150 cycles depending on topology
+* ~50â€“150 cycles depending on topology
 
-This is the **true bottleneck** — not computation.
-
----
-
-## 🧠 Memory Layout Evolution (Critical Optimization Journey)
+This is the **true bottleneck** â€” not computation.
 
 ---
 
-### ❌ Initial Approach
+## ðŸ§  Memory Layout Evolution (Critical Optimization Journey)
+
+---
+
+### âŒ Initial Approach
 
 ```cpp
 #pragma pack(push, 1)
@@ -260,7 +260,7 @@ This is the **true bottleneck** — not computation.
 
 ---
 
-### ✅ Final Approach
+### âœ… Final Approach
 
 * Natural alignment restored
 * Explicit padding introduced
@@ -273,39 +273,39 @@ static_assert(sizeof(PaddedEvent) == 64,
 
 ---
 
-### 📌 Outcome
+### ðŸ“Œ Outcome
 
 > Alignment correctness achieved while preserving latency characteristics, eliminating misaligned load penalties and improving architectural validity.
 
 ---
 
-## 🧮 Latency Budget Breakdown
+## ðŸ§® Latency Budget Breakdown
 
-**Median Execution (~92ns – 142ns ≈ 300–450 cycles)**
+**Median Execution (~92ns â€“ 142ns â‰ˆ 300â€“450 cycles)**
 
 | Component                | Cycles   |
 | ------------------------ | -------- |
-| `__rdtscp` serialization | ~30–50   |
-| Cache coherency transfer | ~50–150  |
-| Cache hierarchy movement | ~80–120  |
-| Compute (branchless ALU) | ~100–150 |
+| `__rdtscp` serialization | ~30â€“50   |
+| Cache coherency transfer | ~50â€“150  |
+| Cache hierarchy movement | ~80â€“120  |
+| Compute (branchless ALU) | ~100â€“150 |
 
 ---
 
-## 📊 Benchmark Results
+## ðŸ“Š Benchmark Results
 
 ```text
-Median (p50):        ~92 ns – 142 ns
+Median (p50):        ~92 ns â€“ 142 ns
 p95:                 ~162 ns
 p99:                 ~172 ns
-p99.9:               ~2.35 µs
+p99.9:               ~2.35 Âµs
 Min:                 ~82 ns
-Max:                 ~82.23 µs
+Max:                 ~82.23 Âµs
 ```
 
 ---
 
-## 📈 Interpretation
+## ðŸ“ˆ Interpretation
 
 * **92ns Floor**
   Lower bound of unfenced pipeline execution (no serialization barriers)
@@ -316,12 +316,12 @@ Max:                 ~82.23 µs
 * **p99 (~172ns)**
   Stable execution under minimal interference
 
-* **p99.9 (~2.35µs – 18µs)**
+* **p99.9 (~2.35Âµs â€“ 18Âµs)**
   Boundary where OS and hardware interrupts dominate
 
 ---
 
-## ⚠️ Tail Latency & System Boundary
+## âš ï¸ Tail Latency & System Boundary
 
 ### Sources of Jitter
 
@@ -334,18 +334,18 @@ Max:                 ~82.23 µs
 
 ### Critical Insight
 
-> Tail latency is not caused by GammaFlow — it is imposed by the execution environment.
+> Tail latency is not caused by NullRing â€” it is imposed by the execution environment.
 
 This represents the **hard boundary of Windows user-space determinism**.
 
 ---
 
-## 🧪 OS-Level Optimizations (Windows)
+## ðŸ§ª OS-Level Optimizations (Windows)
 
 * Thread affinity:
 
-  * Core 2 → Producer
-  * Core 3 → Consumer
+  * Core 2 â†’ Producer
+  * Core 3 â†’ Consumer
 
 * `REALTIME_PRIORITY_CLASS`
 
@@ -362,7 +362,7 @@ _mm_pause();
 * Memory pinning:
 
   * `VirtualLock()`
-  * Expanded working set (≥128MB)
+  * Expanded working set (â‰¥128MB)
 
 * Pre-warming:
 
@@ -372,27 +372,27 @@ _mm_pause();
 
 ---
 
-## ⚖️ Determinism vs Throughput
+## âš–ï¸ Determinism vs Throughput
 
-| Metric              | GammaFlow Choice |
+| Metric              | NullRing Choice |
 | ------------------- | ---------------- |
 | Throughput          | ~50M+ events/sec |
-| Determinism         | ✅                |
-| Tail Predictability | ✅                |
+| Determinism         | âœ…                |
+| Tail Predictability | âœ…                |
 
 ---
 
 ### Tradeoffs
 
-* SPSC instead of MPMC → zero contention
-* No batching → minimum latency
-* Busy spin → higher CPU usage, zero scheduler involvement
+* SPSC instead of MPMC â†’ zero contention
+* No batching â†’ minimum latency
+* Busy spin â†’ higher CPU usage, zero scheduler involvement
 
 ---
 
-## 🚧 System Limits
+## ðŸš§ System Limits
 
-GammaFlow has reached:
+NullRing has reached:
 
 > **Hardware-bound latency regime**
 
@@ -404,7 +404,7 @@ Further improvements are constrained by:
 
 ---
 
-## 🚀 Future Work: Linux RT Migration
+## ðŸš€ Future Work: Linux RT Migration
 
 To break the OS latency barrier:
 
@@ -426,7 +426,7 @@ To break the OS latency barrier:
 
 ---
 
-## ▶️ Build & Run
+## â–¶ï¸ Build & Run
 
 ```bash
 cmake -B build
@@ -436,28 +436,28 @@ cmake --build build --config Release
 
 ---
 
-## 📁 Project Structure
+## ðŸ“ Project Structure
 
 ```text
-gammaflow/
-├── include/
-│   ├── models.hpp
-│   ├── ring_buffer.hpp
-│   ├── types.hpp
-│   └── evaluator.hpp
-├── benchmarks/
-│   └── latency_bench.cpp
-├── assets/
-│   └── architecture.png
-├── CMakeLists.txt
-└── README.md
+nullring/
+â”œâ”€â”€ include/
+â”‚   â”œâ”€â”€ models.hpp
+â”‚   â”œâ”€â”€ ring_buffer.hpp
+â”‚   â”œâ”€â”€ types.hpp
+â”‚   â””â”€â”€ evaluator.hpp
+â”œâ”€â”€ benchmarks/
+â”‚   â””â”€â”€ latency_bench.cpp
+â”œâ”€â”€ assets/
+â”‚   â””â”€â”€ architecture.png
+â”œâ”€â”€ CMakeLists.txt
+â””â”€â”€ README.md
 ```
 
 ---
 
-## 🏁 Conclusion
+## ðŸ Conclusion
 
-GammaFlow is not simply an optimized program.
+NullRing is not simply an optimized program.
 
 It is a **hardware-constrained execution experiment** demonstrating:
 
@@ -467,8 +467,8 @@ It is a **hardware-constrained execution experiment** demonstrating:
 
 ---
 
-## 📌 Final Statement
+## ðŸ“Œ Final Statement
 
-> GammaFlow represents the boundary where software optimization ends, and hardware physics begins.
+> NullRing represents the boundary where software optimization ends, and hardware physics begins.
 
 ---

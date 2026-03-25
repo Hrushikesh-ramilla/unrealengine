@@ -1,15 +1,15 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — engine.cpp
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” engine.cpp
 // Implementation of the GammaEngine consumer pipeline.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include "engine.hpp"
 
 #include <utility>
 
-namespace gammaflow {
+namespace nullring {
 
-// ── Construction / Destruction ──────────────────────────────────────────────
+// â”€â”€ Construction / Destruction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 GammaEngine::GammaEngine(ResultCallback on_result)
     : on_result_{std::move(on_result)} {}
@@ -18,7 +18,7 @@ GammaEngine::~GammaEngine() {
     stop();
 }
 
-// ── Lifecycle ───────────────────────────────────────────────────────────────
+// â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 void GammaEngine::start() {
     if (running_.load(std::memory_order_acquire)) {
@@ -45,24 +45,24 @@ bool GammaEngine::running() const noexcept {
     return running_.load(std::memory_order_acquire);
 }
 
-// ── Producer API ────────────────────────────────────────────────────────────
+// â”€â”€ Producer API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 bool GammaEngine::submit(const RiskEvent* event) noexcept {
     return ring_.try_push(event);
 }
 
-// ── Statistics ──────────────────────────────────────────────────────────────
+// â”€â”€ Statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 std::uint64_t GammaEngine::events_processed() const noexcept {
     return processed_.load(std::memory_order_relaxed);
 }
 
-// ── Consumer Loop ───────────────────────────────────────────────────────────
+// â”€â”€ Consumer Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Hot path:
 //   1. try_pop() from the SPSC ring buffer.
-//   2. On success → evaluate → optional callback → increment counter.
-//   3. On empty   → yield the thread to avoid 100% CPU burn.
+//   2. On success â†’ evaluate â†’ optional callback â†’ increment counter.
+//   3. On empty   â†’ yield the thread to avoid 100% CPU burn.
 //
 // std::this_thread::yield() is preferred over a sleep because:
 //   - It surrenders the time-slice without a minimum sleep granularity
@@ -87,7 +87,7 @@ void GammaEngine::consumer_loop() {
 
             processed_.fetch_add(1, std::memory_order_relaxed);
         } else {
-            // Buffer is empty — yield to avoid aggressive CPU spinning.
+            // Buffer is empty â€” yield to avoid aggressive CPU spinning.
             std::this_thread::yield();
         }
     }
@@ -108,4 +108,4 @@ void GammaEngine::consumer_loop() {
     }
 }
 
-} // namespace gammaflow
+} // namespace nullring

@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GammaFlow — types.hpp
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NullRing â€” types.hpp
 // Fixed-point numeric types for deterministic, floating-point-free arithmetic.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include <cstdint>
 #include <compare>
@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace gammaflow {
+namespace nullring {
 
 /// Compile-time scaling factor: 10^Precision.
 /// Default precision of 8 decimal places covers sub-cent financial granularity.
@@ -35,7 +35,7 @@ public:
         return s;
     }();
 
-    // ── Constructors ────────────────────────────────────────────────────────
+    // â”€â”€ Constructors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Default-construct to zero.
     constexpr FixedPoint() noexcept : raw_{0} {}
@@ -56,7 +56,7 @@ public:
         return fp;
     }
 
-    // ── Accessors ───────────────────────────────────────────────────────────
+    // â”€â”€ Accessors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [[nodiscard]] constexpr raw_type raw() const noexcept { return raw_; }
 
@@ -70,7 +70,7 @@ public:
         return raw_ % scale;
     }
 
-    // ── Arithmetic Operators ────────────────────────────────────────────────
+    // â”€â”€ Arithmetic Operators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     constexpr FixedPoint operator+(FixedPoint rhs) const noexcept {
         return from_raw(raw_ + rhs.raw_);
@@ -80,7 +80,7 @@ public:
         return from_raw(raw_ - rhs.raw_);
     }
 
-    /// Multiplication: (a * b) / scale — uses wide arithmetic to avoid overflow.
+    /// Multiplication: (a * b) / scale â€” uses wide arithmetic to avoid overflow.
     constexpr FixedPoint operator*(FixedPoint rhs) const noexcept {
 #if defined(__GNUC__) || defined(__clang__)
         auto wide = static_cast<__int128>(raw_) * rhs.raw_;
@@ -95,7 +95,7 @@ public:
 #endif
     }
 
-    /// Division: (a * scale) / b — uses wide arithmetic to avoid overflow.
+    /// Division: (a * scale) / b â€” uses wide arithmetic to avoid overflow.
     constexpr FixedPoint operator/(FixedPoint rhs) const {
         if (rhs.raw_ == 0) {
             throw std::domain_error("FixedPoint: division by zero");
@@ -123,11 +123,11 @@ public:
         return from_raw(-raw_);
     }
 
-    // ── Comparison (C++20 three-way) ────────────────────────────────────────
+    // â”€â”€ Comparison (C++20 three-way) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     constexpr auto operator<=>(const FixedPoint&) const noexcept = default;
 
-    // ── String Conversion ───────────────────────────────────────────────────
+    // â”€â”€ String Conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [[nodiscard]] std::string to_string() const {
         auto int_part = integer_part();
@@ -152,12 +152,12 @@ private:
     raw_type raw_;
 };
 
-// ── Convenient Aliases ──────────────────────────────────────────────────────
+// â”€â”€ Convenient Aliases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Price type — 8 decimal places (sub-cent granularity).
+/// Price type â€” 8 decimal places (sub-cent granularity).
 using Price    = FixedPoint<8>;
 
-/// Quantity type — 4 decimal places (fractional share support).
+/// Quantity type â€” 4 decimal places (fractional share support).
 using Quantity = FixedPoint<4>;
 
-} // namespace gammaflow
+} // namespace nullring
